@@ -1,0 +1,169 @@
+---
+title: "R Notebook"
+output: html_notebook
+author: "Ryan O'Dea"
+---
+```{r setup, include=FALSE, warning=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(devtools)
+install.packages(choroplethr)
+install.packages("choroplethrMaps")
+install_github("arilamstein/choroplethrZip@v1.3.0")
+
+pacman::p_load(
+  ggplot2,
+  lubridate,
+  dplyr,
+  tidyverse,
+  knitr,
+  sf,
+  mapview,
+  ggmap,
+  revgeo,
+  choroplethrZip,
+  data.table,
+  maps,
+  rgdal,
+  maptools,
+  choroplethr,
+  choroplethrMaps,
+  devtools,
+  tigris,
+  sp,
+  rgdal,
+  lme4
+)
+```
+
+#Data Intake
+```{r}
+listings <- read.csv("listings.csv")
+listings$price <- as.numeric(gsub("[$]", "", listings$price))
+listings$host_is_superhost = ifelse(listings$host_is_superhost == "t", TRUE, FALSE)
+
+listings <- subset(listings, select = c(
+  'price', 
+  'host_is_superhost', 
+  'neighbourhood_group_cleansed',
+  'room_type',
+  'property_type',
+  'availability_30',
+  'availability_60',
+  'availability_90',
+  'availability_365',
+  "longitude",
+  "latitude"
+  ))
+
+zips <- readOGR(dsn = "cb_2015_us_zcta510_500k", layer = "cb_2015_us_zcta510_500k")
+zips_transform <- spTransform(zips, CRS("+proj=longlat +datum=WGS84 +ellps=WGS84 +towgs84=0,0,0"))
+
+longlat <- listings[,c(10,11)]
+spdf <- SpatialPointsDataFrame(coords = longlat, data = listings, proj4string = CRS("+proj=longlat +datum=WGS84 +ellps=WGS84 +towgs84=0,0,0"))
+zips_subset <- zips_transform[spdf, ]
+
+listings$zipcode <- over(spdf, zips_subset[, "ZCTA5CE10"])
+listings$zipcode <- as.vector(listings$zipcode$ZCTA5CE10)
+
+listings <- listings %>%
+  rename(
+    superhost = host_is_superhost,
+    neighborhood = neighbourhood_group_cleansed,
+    type = room_type,
+    avail_30 = availability_30,
+    avail_60 = availability_60,
+    avail_90 = availability_90,
+    avail_365 = availability_365,
+  )
+listings <- listings[complete.cases(listings), ]
+listings <- subset(listings, type != "Hotel room")
+listings <- subset(listings, type != "Shared room")
+map <- map_data("county")
+```
+
+##Basic EDA
+```{r}
+#Mapview
+locations <- st_as_sf(listings, coords = c("longitude", "latitude"), crs = 4326)
+mapview(locations)
+
+#Exploring listings in neighborhoods
+ggplot(listings, aes(x = fct_infreq(neighborhood), fill = type)) + 
+  geom_bar() + 
+  labs(title = "Listings per Neighborhood", x = "Neighborhood", y = "# Listings", fill = "Room Type") + 
+  coord_flip()
+
+#Exploration of Price v Room Type
+ggplot(listings, aes(x = type, y = price)) + 
+  geom_violin() + 
+  scale_y_log10() + 
+  labs(y = "Price", x = "Room Type", title = "Price v Room type (Log 10 Scale)")
+```
+
+##Spatial Analysis EDA
+```{r, warning=FALSE}
+zip_prices <- listings %>% group_by(zipcode = zipcode) %>% summarise(avg_price = mean(price, na.rm = TRUE))
+colnames(zip_prices) <- c("region", "value")
+
+g_price_location <- zip_choropleth(zip_prices,
+                                   zip_zoom = zip_prices$region,
+                                   title = "Average Price by Region",
+                                   legend = "Average Price per Night") +
+  ggtitle("Expensiveness of Seattle's AirBnB's") + 
+  theme(plot.title = element_text(face = "bold")) + 
+  theme(plot.caption = element_text(color = "grey68")) + 
+  scale_color_gradient(low="#d3cbcb", high="#852eaa") + 
+  scale_fill_brewer("Average Price",palette=4)
+g_price_location
+```
+
+##Fitting a Model
+```{r}
+listings$neighborhood_group = rep(NA, length(listings$neighborhood))
+listings$number <- row.names(listings)
+
+listings$neighborhood_group[listings$neighborhood %in% c("Interbay",
+                                                         "Magnolia", 
+                                                         "University District", 
+                                                         "Queen Anne")] <- "Northern Suburbs"
+
+listings$neighborhood_group[listings$neighborhood %in% c("Seward Park",
+                                                         "Rainier Valley")] <- "Southeastern Seattle"
+
+listings$neighborhood_group[listings$neighborhood %in% c("Lake City", 
+                                                         "Northgate", 
+                                                         "Ballard")] <- "Northgate Area"
+
+listings$neighborhood_group[listings$neighborhood %in% c("Capitol Hill", 
+                                                         "Downtown", 
+                                                         "Beacon Hill", 
+                                                         "Cascade", 
+                                                         "Central Area")] <- "Downtown Area"
+
+listings$neighborhood_group[listings$neighborhood %in% c("Delridge", 
+                                                         "West Seattle")] <- "Southwestern Seattle"
+
+listings$neighborhood_group[listings$neighborhood %in% c("Other neighborhoods")] <- "Other Neighborhoods"
+
+listings %>%
+  ggplot(aes(x = type, y = price, fill = superhost)) + 
+  geom_violin() + 
+  facet_wrap(~neighborhood_group) + 
+  coord_flip() + 
+  theme(axis.text.x = element_text(angle = -45, size = 7, hjust = -.1, vjust = .2)) + 
+  labs(x = "Price", y = "", title = "Price by Type of Room per Grouped Location", fill = "Super Host") + 
+  ylim(c(0,500))
+
+listings %>%
+  ggplot(aes(x = number, y = test, fill = superhost)) + 
+  geom_boxplot() + 
+  facet_wrap(~neighborhood_group) + 
+  coord_flip() + 
+  theme(axis.text.x = element_text(angle = -45, size = 7, hjust = -.1, vjust = .2)) + 
+  labs(x = "Price", y = "", title = "Price by Type of Room per Grouped Location", fill = "Super Host") + 
+  ylim(c(0,500))
+
+listings$test <- cut(listings$price, 14, include.lowest = TRUE)
+```
+
+
