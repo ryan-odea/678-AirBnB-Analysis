@@ -1,6 +1,6 @@
 ---
 title: "Analysis of Seattle's AirBnB Data"
-subtitle: "https://github.com/ryan-odea/678-AirBnB-Analysis"
+subtitle: "https://github.com/ryan-odea/678-AirBnB-Analysis" 
 author: | 
  | Ryan O'Dea
  | Boston University GRS MA678
@@ -126,7 +126,7 @@ map <- map_data("county")
 
 # Abstract
 
-Begun in August of 2008, AirBnB is an American vacation rental marketplace. Without owning any of the real estate listings, AirBnB connects hosts, users that are willing to share their home for payment, to guests. This project seeks to understand the relationship between how a host will price their home or single room in the Seattle area compared to factors of location, type of room being offered, and if the host is considered a Super Host, someone who AirBnB has designated as providing a "shining example for other hosts." On the plot below, we can observe a very noisy data set when simply plotting of listing ID vs price; however, there are some key takeaways. It appears many of the listings are in the Downtown Area and we generally see a trend around $100 per night in most of the areas.
+Begun in August of 2008, AirBnB is an American vacation rental marketplace. Without owning any of the real estate listings, AirBnB connects hosts, users that are willing to share their home for payment, to guests. With data scraped from InsideAirbnb This project seeks to understand the relationship between how a host will price their home or single room in the Seattle area compared to factors of location, type of room being offered, and if the host is considered a Super Host, someone who AirBnB has designated as providing a "shining example for other hosts." On the plot below, we can observe a very noisy data set when simply plotting of listing ID vs price; however, there are some key takeaways. It appears many of the listings are in the Downtown Area and we generally see a trend around $100 per night in most of the areas.
 
 ```{r Beginning_EDA}
 #Data Exploration by taking index/ID of the AirBnB vs Price
@@ -200,9 +200,9 @@ listings %>%
   labs(x = "Price", y = "", title = "Price by Type of Room per Grouped Location", fill = "Super Host")
 
 # listings %>%
-#   ggplot(aes(x = neighborhood_group, y = price_group, col = superhost)) +   
-#   geom_jitter(alpha = 0.5) + 
-#   labs(x = "Neighborhood Group", y = "Price", title = "Price Group vs Neighborhood Group", col = "Super Host") + 
+#   ggplot(aes(x = neighborhood_group, y = price_group, col = superhost)) +
+#   geom_jitter(alpha = 0.5) +
+#   labs(x = "Neighborhood Group", y = "Price", title = "Price Group vs Neighborhood Group", col = "Super Host") +
 #   theme(axis.text.x = element_text(angle = -45, size = 9, hjust = .1, vjust = -.1))
 
 listings %>%
