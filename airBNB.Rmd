@@ -1,7 +1,9 @@
 ---
 title: "Analysis of Seattle's AirBnB Data"
-subtitle: "Boston University GRS MA678"
-author: "Ryan O'Dea"
+subtitle: "https://github.com/ryan-odea/678-AirBnB-Analysis"
+author: | 
+ | Ryan O'Dea
+ | Boston University GRS MA678
 output:
   pdf_document: default
 ---
